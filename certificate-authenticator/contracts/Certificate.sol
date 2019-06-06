@@ -11,6 +11,8 @@ contract Certificate {
 
     mapping(address => bool) canVerify;
 
+    event verifierAdded(address verifierAddress);
+
     modifier onlyVerifier(address _sender){
         require(canVerify[_sender], "caller cannot verify");
         _;
@@ -41,6 +43,7 @@ contract Certificate {
 
     function addVerifier(address _verifierAddress) public onlyOwner {
         canVerify[_verifierAddress] = true;
+        emit verifierAdded(_verifierAddress);
     }
 }
 
@@ -59,9 +62,9 @@ contract CertificateNotary {
          _;
     }
 
-    function createCertificate(address _StudentAddress, address _IssuerAddr, string memory _IssuerName, string memory _StudentName,
+    function createCertificate(address _StudentAddress, string memory _IssuerName, string memory _StudentName,
     string memory _ProgramName, string memory _CertificateType, bool _Honors, uint _GradutationDate) public onlyOwner {
-        address newCertificate = address(new Certificate(_StudentAddress, _IssuerAddr, _IssuerName,
+        address newCertificate = address(new Certificate(_StudentAddress, msg.sender, _IssuerName,
         _StudentName, _ProgramName, _CertificateType, _Honors, _GradutationDate));
         emit ContractCreated(newCertificate);
         registeredCertificates.push(newCertificate);
