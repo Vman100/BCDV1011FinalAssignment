@@ -1,70 +1,73 @@
-pragma solidity ^0.4.19;
+pragma solidity ^0.5.9;
 
-contract CertificateNotary {
-    // TODO
-    address [] public registeredCertificates;
-    event ContractCreated(address contractAddress);
-    
-    function createCertificate(string _StudentName, string _ID, string _CourseName,
-    string _status, uint _GraduateDate) public {
-        
-        address newCertificate = new Certificate(msg.sender, _StudentName, _ID,
-        _CourseName, _status, _GraduateDate);
-        
-        // saving the address so a front-end client can find it
-        
-        // emit ContractCreated(newCertificate);
-        
-        registeredCertificates.push(newCertificate);
+contract Certificate {
+    address owner;
+    string IssuerName;
+    string StudentName;
+    string ProgramName;
+    string CertificateType;
+    bool Honors;
+    uint GradutationDate;
+
+    mapping(address => bool) canVerify;
+
+    modifier onlyVerifier(address _sender){
+        require(canVerify[_sender], "caller cannot verify");
+        _;
     }
-    function getDeployedCertificates() public view returns (address[]) {
-        return registeredCertificates;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "caller is not owner");
+         _;
+    }
+
+    constructor (address _owner, address _IssuerAddr, string memory _IssuerName, string memory _StudentName,
+    string memory _ProgramName, string memory _CertificateType, bool _Honors, uint _GradutationDate) public {
+        owner = _owner;
+        IssuerName = _IssuerName;
+        StudentName = _StudentName;
+        ProgramName = _ProgramName;
+        CertificateType = _CertificateType;
+        Honors = _Honors;
+        GradutationDate = _GradutationDate;
+        canVerify[_owner] = true;
+        canVerify[_IssuerAddr] = true;
+    }
+
+    function getCertificateDetails() public onlyVerifier(msg.sender) view
+    returns (address, string memory, string memory, string memory, string memory, bool, uint) {
+        return (owner, IssuerName, StudentName, ProgramName, CertificateType, Honors, GradutationDate);
+    }
+
+    function addVerifier(address _verifierAddress) public onlyOwner {
+        canVerify[_verifierAddress] = true;
     }
 }
 
+contract CertificateNotary {
+    address owner;
+    address[] registeredCertificates;
 
+    event ContractCreated(address contractAddress);
 
-
-
-contract Certificate {
-    address public owner;
-    string public StudentName;
-    string public ID;
-    string public CourseName;
-    string public status;
-    uint public GraduateDate; 
-    
-    constructor (address _owner, string _StudentName, string _ID, string _CourseName,
-    string _status, uint _GraduateDate) public {
-        // You will instantiate your contract here
-        owner = _owner;
-        StudentName = _StudentName;
-        ID = _ID;
-        CourseName = _CourseName;
-        status = _status;
-        GraduateDate = _GraduateDate; 
+    constructor() public{
+        owner = msg.sender;
     }
+
     modifier onlyOwner() {
-        require(msg.sender == owner);
+        require(msg.sender == owner, "caller is not owner");
          _;
     }
-    
-// To use a modifier, append it to the end of the function name
-    function collect() external onlyOwner {
-        owner.transfer(address(this).balance);
+
+    function createCertificate(address _StudentAddress, address _IssuerAddr, string memory _IssuerName, string memory _StudentName,
+    string memory _ProgramName, string memory _CertificateType, bool _Honors, uint _GradutationDate) public onlyOwner {
+        address newCertificate = address(new Certificate(_StudentAddress, _IssuerAddr, _IssuerName,
+        _StudentName, _ProgramName, _CertificateType, _Honors, _GradutationDate));
+        emit ContractCreated(newCertificate);
+        registeredCertificates.push(newCertificate);
     }
-    function getBalance() public view onlyOwner returns (uint) {
-        return address(this).balance;
-    }
-    function getCertificateDetails() public view returns (
-        address, string, string, string, string, uint) {
-        return (
-            owner,
-            StudentName,
-            ID,
-            CourseName,
-            status,
-            GraduateDate
-        );
+
+    function getRegisteredCertificates() public view returns (address[] memory) {
+        return registeredCertificates;
     }
 }
