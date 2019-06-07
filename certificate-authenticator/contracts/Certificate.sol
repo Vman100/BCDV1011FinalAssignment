@@ -1,32 +1,7 @@
-pragma solidity ^0.4.19;
-
-contract CertificateNotary {
-    // TODO
-    address [] public registeredCertificates;
-    event ContractCreated(address contractAddress);
-    
-    function createCertificate(string _StudentName, string _ID, string _CourseName,
-    string _status, uint _GraduateDate) public {
-        
-        address newCertificate = new Certificate(msg.sender, _StudentName, _ID,
-        _CourseName, _status, _GraduateDate);
-        
-        // saving the address so a front-end client can find it
-        
-        // emit ContractCreated(newCertificate);
-        
-        registeredCertificates.push(newCertificate);
-    }
-    function getDeployedCertificates() public view returns (address[]) {
-        return registeredCertificates;
-    }
-}
-
-
-
-
+pragma solidity ^0.5.9;
 
 contract Certificate {
+    
     address public owner;
     string public StudentName;
     string public ID;
@@ -34,9 +9,13 @@ contract Certificate {
     string public status;
     uint public GraduateDate; 
     
-    constructor (address _owner, string _StudentName, string _ID, string _CourseName,
-    string _status, uint _GraduateDate) public {
-        // You will instantiate your contract here
+    modifier onlyOwner() {
+        require(msg.sender == owner);
+         _;
+    }
+    
+    constructor (address _owner, string memory _StudentName, string memory _ID, string memory _CourseName,
+    string memory _status, uint _GraduateDate) public {
         owner = _owner;
         StudentName = _StudentName;
         ID = _ID;
@@ -44,27 +23,43 @@ contract Certificate {
         status = _status;
         GraduateDate = _GraduateDate; 
     }
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-         _;
+    
+    // function getBalance() public view onlyOwner returns (uint) {
+    //     return address(this).balance;
+    // }
+    
+    // function getCertificateDetails() public view returns (
+    //     address, string memory, string memory, string memory, string memory, uint) {
+    //     return (
+    //         owner,
+    //         StudentName,
+    //         ID,
+    //         CourseName,
+    //         status,
+    //         GraduateDate
+    //     );
+    // }
+    
+}
+    
+    contract CertificateNotary {
+    // TODO
+    address public owner;
+    address[] public registeredCertificates;
+    event ContractCreated(address contractAddress);
+
+    
+    function createCertificate( string memory _StudentName, string memory _ID, string memory _CourseName,
+    string memory _status, uint _GraduateDate) public {
+        
+        address newCertificate =   address(new Certificate(msg.sender, _StudentName, _ID,
+        _CourseName, _status, _GraduateDate));
+        
+        emit ContractCreated(newCertificate);
+        registeredCertificates.push(newCertificate);
     }
     
-// To use a modifier, append it to the end of the function name
-    function collect() external onlyOwner {
-        owner.transfer(address(this).balance);
-    }
-    function getBalance() public view onlyOwner returns (uint) {
-        return address(this).balance;
-    }
-    function getCertificateDetails() public view returns (
-        address, string, string, string, string, uint) {
-        return (
-            owner,
-            StudentName,
-            ID,
-            CourseName,
-            status,
-            GraduateDate
-        );
+    function getDeployedCertificates() public view returns (address[] memory) {
+        return registeredCertificates;
     }
 }
