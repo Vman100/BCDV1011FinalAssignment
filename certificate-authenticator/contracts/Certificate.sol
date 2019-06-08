@@ -1,65 +1,78 @@
-pragma solidity ^0.5.9;
+pragma solidity ^0.5.4;
 
-contract Certificate {
-    
-    address public owner;
-    string public StudentName;
-    string public ID;
-    string public CourseName;
-    string public status;
-    uint public GraduateDate; 
-    
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-         _;
-    }
-    
-    constructor (address _owner, string memory _StudentName, string memory _ID, string memory _CourseName,
-    string memory _status, uint _GraduateDate) public {
-        owner = _owner;
-        StudentName = _StudentName;
-        ID = _ID;
-        CourseName = _CourseName;
-        status = _status;
-        GraduateDate = _GraduateDate; 
-    }
-    
-    // function getBalance() public view onlyOwner returns (uint) {
-    //     return address(this).balance;
-    // }
-    
-    // function getCertificateDetails() public view returns (
-    //     address, string memory, string memory, string memory, string memory, uint) {
-    //     return (
-    //         owner,
-    //         StudentName,
-    //         ID,
-    //         CourseName,
-    //         status,
-    //         GraduateDate
-    //     );
-    // }
-    
-}
-    
-    contract CertificateNotary {
-    // TODO
-    address public owner;
-    address[] public registeredCertificates;
+contract CertificateNotary {
+    address owner;
+    address[] registeredCertificates;
+
     event ContractCreated(address contractAddress);
 
-    
-    function createCertificate( string memory _StudentName, string memory _ID, string memory _CourseName,
-    string memory _status, uint _GraduateDate) public {
-        
-        address newCertificate =   address(new Certificate(msg.sender, _StudentName, _ID,
-        _CourseName, _status, _GraduateDate));
-        
+    constructor() public{
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "caller is not owner");
+         _;
+    }
+
+    function createCertificate(address _StudentAddress, string memory _IssuerName, string memory _StudentName,
+    string memory _ProgramName, string memory _CertificateType, bool _Honors, uint _GradutationDate) public onlyOwner {
+        address newCertificate = address(new Certificate(_StudentAddress, msg.sender, _IssuerName,
+        _StudentName, _ProgramName, _CertificateType, _Honors, _GradutationDate));
         emit ContractCreated(newCertificate);
         registeredCertificates.push(newCertificate);
     }
-    
-    function getDeployedCertificates() public view returns (address[] memory) {
+
+    function getRegisteredCertificates() public view returns (address[] memory) {
         return registeredCertificates;
     }
 }
+
+
+contract Certificate {
+    address owner;
+    string IssuerName;
+    string StudentName;
+    string ProgramName;
+    string CertificateType;
+    bool Honors;
+    uint GradutationDate;
+
+    mapping(address => bool) canVerify;
+
+    event verifierAdded(address verifierAddress);
+
+    modifier onlyVerifier(address _sender){
+        require(canVerify[_sender], "caller cannot verify");
+        _;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "caller is not owner");
+         _;
+    }
+
+    constructor (address _owner, address _IssuerAddr, string memory _IssuerName, string memory _StudentName,
+    string memory _ProgramName, string memory _CertificateType, bool _Honors, uint _GradutationDate) public {
+        owner = _owner;
+        IssuerName = _IssuerName;
+        StudentName = _StudentName;
+        ProgramName = _ProgramName;
+        CertificateType = _CertificateType;
+        Honors = _Honors;
+        GradutationDate = _GradutationDate;
+        canVerify[_owner] = true;
+        canVerify[_IssuerAddr] = true;
+    }
+
+    function getCertificateDetails() public onlyVerifier(msg.sender) view
+    returns (address, string memory, string memory, string memory, string memory, bool, uint) {
+        return (owner, IssuerName, StudentName, ProgramName, CertificateType, Honors, GradutationDate);
+    }
+
+    function addVerifier(address _verifierAddress) public onlyOwner {
+        canVerify[_verifierAddress] = true;
+        emit verifierAdded(_verifierAddress);
+    }
+}
+
