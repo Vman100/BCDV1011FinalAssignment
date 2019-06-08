@@ -1,11 +1,32 @@
-const CertificateNotary = require('Embark/contracts/Certificate');
+const CertificateNotary = require('Embark/contracts/CertificateNotary');
+const Certificate = require('Embark/contracts/Certificate');
+
+function didRevertCorrectly(actualError, expectedError) {
+  return actualError.includes(expectedError);
+}
+
+let expectedErrorMessages = {
+  "owner": "caller is not owner",
+  "verifier": "caller cannot verify"
+}
 
 let accounts;
 
 config({
-
   contracts: {
-    "CertificateNotary": {}
+    "CertificateNotary": {},
+    "Certificate": {
+      args: [
+        '$accounts[4]',
+        '$accounts[0]',
+        "Instition1",
+        "Eve Brown",
+        "Program A230", 
+        "Post-graduate degree",
+        false,
+        (new Date).getTime()
+      ]
+    }
   }
 }, (_err, web3_accounts) => {
   accounts = web3_accounts
@@ -14,42 +35,72 @@ config({
 contract("CertificateNotary", function () {
   this.timeout(0);
 
-  it("set", async function () {
-    await CertificateNotary.methods.createCertificate(0xca35b7d915458ef540ade6068dfe2f44e8fa733c,2,3,4,5,6,2).send({from:accounts[0]});
-    let result = await SimpleStorage.methods.get().call();
-    assert.strictEqual(parseInt(result, 10),0xca35b7d915458ef540ade6068dfe2f44e8fa733c,2,3,4,5,6,2 );
+  it("Owner can create new certificate contract", async function () {
+    let result = await CertificateNotary.methods.createCertificate(
+      accounts[2],
+      'Instition1',
+      'Alice Bond',
+      'Program T20',
+      'advanced diploma',
+      true,
+      (new Date).getTime()
+      ).send();
+      
+    let log = result.events.ContractCreated;
+    assert.ok(log.returnValues[0]);
   });
 
-  it("not owner",async function () {
+  it("non Owner cannot create new certificate contract",async function () {
     try {
-    await CertificateNotary.methods.createCertificate().send({from:accounts[0]});
+    await CertificateNotary.methods.createCertificate(
+      accounts[3],
+      'Instition2',
+      'Bob Smith',
+      'Program T30',
+      'diploma',
+      false,
+      (new Date).getTime()
+    ).send({from: accounts[1]});
     }catch(error){
-      let actualError = error.message
-      let expectedError = "not Owner"
-      assert.ok(actualError.includes(expectedError))
+      assert.ok(didRevertCorrectly(error.message,expectedErrorMessages["owner"]))
     }
   });
 
+  it("can get array of registered cerificates", async function () {
+    let result = await CertificateNotary.methods.getRegisteredCertificates().call()
+    assert.ok(result)
+  });
 
-  // it("get", async function () {
-  //   try{
-  //   await Certificate.methods.getCertificateDetails().call({from:accounts[5]});
-  //   }catch(error){
-  //     let actualError = error.message
-  //     let expectedError = "not caller cannot verify"
-  //     assert.ok(actualError.includes(expectedError))
-  //   }
-  //   console.log('test2')
-  // });
+})
 
-//   it("deployed"),async function(){
-//     let address = CertificateNotary.options.address;
-//     assert.ok(address)
-//   }
-// });
+contract("Certificate", function () {
+  this.timeout(0);
 
-  it("should have account with balance", async function() {
-    let balance = await web3.eth.getBalance(accounts[0]);
-    assert.ok(parseInt(balance, 10) > 0);
+  it("verifiers can get certificate details", async function () {
+    let result = await Certificate.methods.getCertificateDetails().call();
+    let result2 = await Certificate.methods.getCertificateDetails().call({from: accounts[4]});
+    assert.deepEqual(result, result2)
+  });
+
+  it("non verifier cannot get certificate details", async function () {
+    try{
+    await Certificate.methods.getCertificateDetails().call({from: accounts[5]});
+    }catch(error){
+      assert.ok(didRevertCorrectly(error.message,expectedErrorMessages["verifier"]))
+    }
+  });
+
+  it("Owner can add a new verifier", async function () {
+    let result = await Certificate.methods.addVerifier(accounts[3]).send({from: accounts[4]});
+    log = result.events.verifierAdded;
+    assert.equal(log.returnValues[0], accounts[3])
+  });
+
+  it("non Owner cannot add a new verifier", async function () {
+    try{
+    await Certificate.methods.addVerifier(accounts[1]).send({from: accounts[5]});
+    }catch(error){
+      assert.ok(didRevertCorrectly(error.message,expectedErrorMessages["owner"]))
+    }
   });
 })
