@@ -56,6 +56,9 @@ module.exports = {
       //SimpleStorage: {
       //  args: [ 100 ]
       //}
+      Certificate: {
+        deploy: false
+      }
     }
   },
 
