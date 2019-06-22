@@ -1,34 +1,46 @@
 const ethers = require('ethers');
-const contractInfo = require('./build/contracts/CertificateNotary.json');
+const certificateNotaryInfo = require('./build/contracts/CertificateNotary.json');
+const certificateInfo = require('./build/contracts/Certificate.json');
 
-let provider = ethers.getDefaultProvider("kovan")
-let privateKey = process.env.PK;
-let wallet = new ethers.Wallet(privateKey, provider)
+const provider = ethers.getDefaultProvider("kovan")
+let wallet = new ethers.Wallet(process.env.PK, provider)
 
-let abi = contractInfo.abiDefinition
-let contractAddress = "0xEe52B02a3A28e6b15b0495933267d9443f93f30A"
-let contract = new ethers.Contract(contractAddress, abi, provider).connect(wallet)
+const certificateNotaryAbi = certificateNotaryInfo.abiDefinition
+const certificateAbi = certificateInfo.abiDefinition
+const certificateNotaryAddress = "0xEe52B02a3A28e6b15b0495933267d9443f93f30A"
 
-async function createCertificate() {
-  let tx = await contract.createCertificate(
-    '0xF345d7263648C19D24eDe0E474aFD7fCdbF220f0',
-    'IssuerA',
-    'StudentA',
-    'ProgramA',
-    'typeA',
-    true,
-    (new Date).getTime()
-  )
-  console.log(tx)
+let certificateNotery = new ethers.Contract(certificateNotaryAddress, certificateNotaryAbi, wallet)
+let certificate
+
+const createCertificate = async (values) => {
+  await certificateNotery.createCertificate(...values, (new Date).getTime())
 }
 //createCertificate()
 
-contract.on("ContractCreated", (newCertificate) => {
-  console.log('newCertificate', newCertificate)
-})
-
-async function getRegisteredCertificates() {
-  let tx = await contract.getRegisteredCertificates()
-  console.log(tx)
+const getRegisteredCertificates = async () => {
+  let tx = await certificateNotery.getRegisteredCertificates()
+  return tx
 }
 //getRegisteredCertificates()
+const setCertificateInterface = (address) => {
+  certificate = new ethers.Contract(address, certificateAbi, wallet)
+}
+
+const getCertificateDetails = async () => {
+  let tx = await certificate.getCertificateDetails()
+  return tx
+}
+
+const certificateNoteryListener = () => {
+  certificateNotery.on("ContractCreated", (newCertificate) => {
+    console.log('newCertificate', newCertificate)
+  })
+}
+
+module.exports = {
+  createCertificate, 
+  getRegisteredCertificates, 
+  setCertificateInterface,
+  getCertificateDetails,
+  certificateNoteryListener
+} 
